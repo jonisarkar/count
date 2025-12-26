@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>পণ্যের হিসাব তালিকা</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        
+        /* ইনপুট বক্স স্টাইল */
+        .input-group { display: flex; gap: 8px; margin-bottom: 15px; background: #f1f3f4; padding: 15px; border-radius: 8px; flex-wrap: wrap; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 14px; }
+        input[type="text"] { flex: 2; min-width: 150px; }
+        input[type="number"] { width: 70px; }
+        select { cursor: pointer; background-color: white; }
+        
+        /* বাটন স্টাইল */
+        .btn-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.3s; padding: 10px; flex: 1; color: white; }
+        #add-btn { background: #007bff; }
+        #print-btn { background: #28a745; }
+        #copy-btn { background: #17a2b8; }
+        button:hover { opacity: 0.85; }
+
+        /* লিস্ট স্টাইল */
+        ul { list-style: none; padding: 0; }
+        li { background: #fff; border: 1px solid #eee; margin-bottom: 8px; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .delete-btn { background: #dc3545; color: white; padding: 5px 12px; font-size: 12px; border-radius: 4px; flex: none; }
+
+        /* প্রিন্ট ফরম্যাট */
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .delete-btn, .input-group, .btn-container, h2 { display: none; }
+            .print-header { display: block !important; text-align: center; border-bottom: 2px solid #000; margin-bottom: 15px; }
+        }
+        .print-header { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📋 পণ্যের হিসাব</h2>
+    
+    <div class="input-group">
+        <input type="text" id="itemName" placeholder="পণ্যের নাম">
+        <input type="number" id="itemQty" value="1" min="1">
+        <select id="unitType">
+            <option value="টি">টি</option>
+            <option value="বক্স">বক্স</option>
+        </select>
+        <button id="add-btn">যোগ করুন</button>
+    </div>
+
+    <div class="btn-container">
+        <button id="print-btn" onclick="window.print()">🖨️ প্রিন্ট</button>
+        <button id="copy-btn">📋 কপি</button>
+    </div>
+
+    <div id="print-area">
+        <div class="print-header">
+            <h3>পণ্যের তালিকা রিপোর্ট</h3>
+            <p>তারিখ: <span id="currentDate"></span></p>
+        </div>
+        <ul id="itemList"></ul>
+    </div>
+</div>
+
+<script>
+    const inputName = document.getElementById('itemName');
+    const inputQty = document.getElementById('itemQty');
+    const unitType = document.getElementById('unitType');
+    const addBtn = document.getElementById('add-btn');
+    const itemList = document.getElementById('itemList');
+    const copyBtn = document.getElementById('copy-btn');
+    document.getElementById('currentDate').innerText = new Date().toLocaleDateString('bn-BD');
+
+    document.addEventListener('DOMContentLoaded', getItems);
+
+    addBtn.addEventListener('click', () => {
+        if (inputName.value.trim() === '') return;
+        const itemObj = { 
+            id: Date.now(), 
+            name: inputName.value, 
+            qty: inputQty.value, 
+            unit: unitType.value 
+        };
+        saveLocal(itemObj);
+        createListItem(itemObj);
+        inputName.value = '';
+        inputQty.value = '1';
+    });
+
+    function createListItem(item) {
+        const li = document.createElement('li');
+        li.setAttribute('data-id', item.id);
+        li.innerHTML = `
+            <span><strong>${item.name}</strong> - ${item.qty} ${item.unit}</span> 
+            <button class="delete-btn" onclick="removeItem(${item.id})">ডিলিট</button>
+        `;
+        itemList.appendChild(li);
+    }
+
+    function saveLocal(item) {
+        let items = localStorage.getItem('myStock') ? JSON.parse(localStorage.getItem('myStock')) : [];
+        items.push(item);
+        localStorage.setItem('myStock', JSON.stringify(items));
+    }
+
+    function getItems() {
+        let items = localStorage.getItem('myStock') ? JSON.parse(localStorage.getItem('myStock')) : [];
+        items.forEach(item => createListItem(item));
+    }
+
+    function removeItem(id) {
+        let items = JSON.parse(localStorage.getItem('myStock'));
+        const filteredItems = items.filter(i => i.id !== id);
+        localStorage.setItem('myStock', JSON.stringify(filteredItems));
+        document.querySelector(`li[data-id="${id}"]`).remove();
+    }
+
+    // কপি ফাংশন
+    copyBtn.addEventListener('click', () => {
+        let items = localStorage.getItem('myStock') ? JSON.parse(localStorage.getItem('myStock')) : [];
+        if (items.length === 0) {
+            alert("কোনো পণ্য নেই!");
+            return;
+        }
+        
+        let textToCopy = "📋 পণ্যের তালিকা:\n";
+        items.forEach((item, index) => {
+            textToCopy += `${index + 1}. ${item.name} - ${item.qty} ${item.unit}\n`;
+        });
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            alert("কপি করা হয়েছে!");
+        });
+    });
+</script>
+
+</body>
+</html>
